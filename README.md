@@ -1,6 +1,3 @@
-
-
-````markdown
 # BankingApp 🏦
 
 A .NET Core-based banking application designed for managing accounts, transactions, exception rules, document templates, and other financial operations.  
