@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35931.197 d17.13
+VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankingApp.API", "BankingApp\BankingApp.API.csproj", "{BA655BF0-865A-48B5-8858-66646B326A1C}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankingApp.Application", "BankingApp.Application\BankingApp.Application.csproj", "{2956A592-41D8-4D68-A564-E65D94C16217}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankingApp.Infrastructure", "BankingApp.Infrastructure\BankingApp.Infrastructure.csproj", "{895A0EE2-66F6-4799-9025-E585FBA39D71}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankingApp.Tests", "BankingApp.Tests\BankingApp.Tests.csproj", "{FA281EB8-9E86-41F9-8350-2E577FDF54CF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{895A0EE2-66F6-4799-9025-E585FBA39D71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{895A0EE2-66F6-4799-9025-E585FBA39D71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{895A0EE2-66F6-4799-9025-E585FBA39D71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA281EB8-9E86-41F9-8350-2E577FDF54CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA281EB8-9E86-41F9-8350-2E577FDF54CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA281EB8-9E86-41F9-8350-2E577FDF54CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA281EB8-9E86-41F9-8350-2E577FDF54CF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
