@@ -123,12 +123,6 @@ BankingApp/
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
-```
-
----
-
-If you want me to help add badges, screenshots, or additional sections like API usage or deployment info, just let me know!
-```
 
 
 
