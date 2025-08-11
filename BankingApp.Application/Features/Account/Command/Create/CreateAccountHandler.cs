@@ -4,6 +4,7 @@ using BankingApp.Application.Exceptions;
 using BankingApp.Domain.BindingModels.Responses;
 using BankingApp.Domain.Constants;
 using BankingApp.Infrastructure.Persistence.UnitOfWork;
+using BankingApp.Infrastructure.Services;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -13,11 +14,16 @@ namespace BankingApp.Application.Features.Account.Command.Create
     {
         private readonly ILogger<CreateAccountHandler> _logger;
         private readonly IUnitOfWork _uow;
+        private readonly ICurrentUserService _currentUser;
 
-        public CreateAccountHandler(ILogger<CreateAccountHandler> logger, IUnitOfWork uow)
+        public CreateAccountHandler(
+            ILogger<CreateAccountHandler> logger,
+            IUnitOfWork uow,
+            ICurrentUserService currentUser)
         {
             _logger = logger;
             _uow = uow;
+            _currentUser = currentUser;
         }
 
         public async Task<ServiceResponse> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
@@ -25,18 +31,12 @@ namespace BankingApp.Application.Features.Account.Command.Create
             using var transaction = _uow.BeginTransaction();
             var response = new ServiceResponse();
 
-            _logger.LogInformation("Starting account creation for {AccountHolderName} with initial deposit {InitialDeposit}",
-                request.AccountHolderName, request.InitialDeposit);
-
             try
             {
                 var validator = new CreateAccountCommandValidator(_uow);
                 var result = validator.Validate(request);
                 if (!result.IsValid)
-                {
-                    _logger.LogWarning("Validation failed for account creation: {Errors}", result.Errors);
                     throw new FluentValidation.ValidationException(result.Errors);
-                }
 
                 var newAccount = new BankingApp.Domain.Models.Account
                 {
@@ -44,6 +44,8 @@ namespace BankingApp.Application.Features.Account.Command.Create
                     AccountHolderName = request.AccountHolderName,
                     Balance = request.InitialDeposit,
                     CreatedDate = DateTime.UtcNow,
+                    OwnerId = _currentUser.UserId.ToString(),      
+                    CreatedBy = _currentUser.FullName,  
                     IsDeleted = false
                 };
 
@@ -52,7 +54,6 @@ namespace BankingApp.Application.Features.Account.Command.Create
 
                 if (request.InitialDeposit > 0)
                 {
-                    _logger.LogInformation("Recording initial deposit transaction for account {AccountNumber}", newAccount.AccountNumber);
                     var depositTransaction = new BankingApp.Domain.Models.Transaction
                     {
                         AccountId = newAccount.Id,
@@ -71,9 +72,6 @@ namespace BankingApp.Application.Features.Account.Command.Create
 
                 response.StatusCode = ResponseCode.SUCCESSFUL;
                 response.StatusMessage = $"Account created successfully. Account Number: {newAccount.AccountNumber}";
-
-                _logger.LogInformation("Account {AccountNumber} created successfully for {AccountHolderName}",
-                    newAccount.AccountNumber, newAccount.AccountHolderName);
             }
             catch (ValidationException e)
             {
@@ -84,9 +82,9 @@ namespace BankingApp.Application.Features.Account.Command.Create
             catch (Exception e)
             {
                 _logger.LogError(e, "Unexpected error during account creation");
+                transaction.Rollback();
                 response.StatusMessage = e.Message;
                 response.StatusCode = ResponseCode.BadRequest;
-                transaction.Rollback();
             }
 
             return response;

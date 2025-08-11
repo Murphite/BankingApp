@@ -41,13 +41,15 @@ namespace BankingApp.Application.Features.Account.Command.Withdraw
 
             account.Balance -= request.Amount;
 
-            _uow.GetRepository<BankingApp.Domain.Models.Transaction>().Insert(new BankingApp.Domain.Models.Transaction
+            _uow.GetRepository<BankingApp.Domain.Models.Transaction>().Insert(
+            new BankingApp.Domain.Models.Transaction
             {
                 AccountId = account.Id,
                 Amount = request.Amount,
                 TransactionType = "Withdraw",
                 TransactionDate = DateTime.UtcNow,
                 BalanceAfterTransaction = account.Balance,
+                Description = $"Withdrawal of {request.Amount:C} via payment gateway",
                 IsDeleted = false
             });
 

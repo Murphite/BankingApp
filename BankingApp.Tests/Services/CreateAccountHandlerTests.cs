@@ -5,6 +5,7 @@ using BankingApp.Domain.Constants;
 using BankingApp.Domain.Models;
 using BankingApp.Infrastructure.Persistence.Repositories;
 using BankingApp.Infrastructure.Persistence.UnitOfWork;
+using BankingApp.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Linq.Expressions;
@@ -19,6 +20,7 @@ namespace BankingApp.Tests.Services
         private readonly Mock<IGenericRepository<Account>> _accountRepoMock;
         private readonly Mock<IGenericRepository<Transaction>> _transactionRepoMock;
         private readonly Mock<IDatabaseTransaction> _transactionMock;
+        private readonly Mock<ICurrentUserService> _currentUserMock;
         private readonly CreateAccountHandler _handler;
 
         public CreateAccountHandlerTests()
@@ -28,6 +30,7 @@ namespace BankingApp.Tests.Services
             _accountRepoMock = new Mock<IGenericRepository<Account>>();
             _transactionRepoMock = new Mock<IGenericRepository<Transaction>>();
             _transactionMock = new Mock<IDatabaseTransaction>();
+            _currentUserMock = new Mock<ICurrentUserService>();
 
             _unitOfWorkMock.Setup(u => u.GetRepository<Account>())
                 .Returns(_accountRepoMock.Object);
@@ -36,7 +39,15 @@ namespace BankingApp.Tests.Services
             _unitOfWorkMock.Setup(u => u.BeginTransaction())
                 .Returns(_transactionMock.Object);
 
-            _handler = new CreateAccountHandler(_loggerMock.Object, _unitOfWorkMock.Object);
+            // Mock current user values
+            _currentUserMock.Setup(c => c.UserId).Returns(Guid.NewGuid());
+            _currentUserMock.Setup(c => c.FullName).Returns("Test User");
+
+            _handler = new CreateAccountHandler(
+                _loggerMock.Object,
+                _unitOfWorkMock.Object,
+                _currentUserMock.Object
+            );
         }
 
         [Fact]
@@ -83,7 +94,6 @@ namespace BankingApp.Tests.Services
                     It.IsAny<string>()
                 ))
                 .Returns(new List<Account>().AsQueryable());
-
 
             var result = await _handler.Handle(command, CancellationToken.None);
 

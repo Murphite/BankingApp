@@ -94,9 +94,10 @@ namespace BankingApp.API.Extensions
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(assembly));
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<ICacheService, CacheService>();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IPaymentGateway, MockPaystackService>();
+            services.AddScoped(typeof(IUnitOfWork<>), typeof(UnitOfWork<>));
             services.AddScoped<IUnitOfWork, UnitOfWork<BankingDbContext>>();
-
 
 
 

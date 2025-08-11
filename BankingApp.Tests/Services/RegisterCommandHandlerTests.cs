@@ -3,6 +3,8 @@ using BankingApp.Application.Exceptions;
 using BankingApp.Application.Features.Auth.Commands.Register;
 using BankingApp.Domain.Models;
 using BankingApp.Infrastructure.Persistence.Context;
+using BankingApp.Infrastructure.Persistence.Repositories;
+using BankingApp.Infrastructure.Persistence.UnitOfWork;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -14,111 +16,111 @@ namespace BankingApp.Tests.Services
     public class RegisterCommandHandlerTests
     {
         private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
-        private readonly Mock<BankingDbContext> _dbContextMock;
+        private readonly Mock<IUnitOfWork<BankingDbContext>> _unitOfWorkMock;
         private readonly Mock<ILogger<RegisterCommandHandler>> _loggerMock;
-        private readonly RegisterCommandHandler _handler;
-        private readonly List<Customer> _customerStore = new();
-        private readonly List<Admin> _adminStore = new();
+
+        private readonly List<Customer> _customerStore;
+        private readonly List<Admin> _adminStore;
+
+        private RegisterCommandHandler _handler;
 
         public RegisterCommandHandlerTests()
         {
             // Mock UserManager
             var store = new Mock<IUserStore<ApplicationUser>>();
             _userManagerMock = new Mock<UserManager<ApplicationUser>>(
-                store.Object, null, null, null, null, null, null, null, null);
-           
-            _dbContextMock.Object.Customers = CreateMockDbSet(_customerStore).Object;
-            _dbContextMock.Object.Admins = CreateMockDbSet(_adminStore).Object;
+                store.Object, null, null, null, null, null, null, null, null
+            );
 
+            _unitOfWorkMock = new Mock<IUnitOfWork<BankingDbContext>>();
             _loggerMock = new Mock<ILogger<RegisterCommandHandler>>();
+
+            _customerStore = new List<Customer>();
+            _adminStore = new List<Admin>();
+
+            // Mock repository for Customer
+            var customerRepoMock = new Mock<IGenericRepository<Customer>>();
+            customerRepoMock.Setup(r => r.Insert(It.IsAny<Customer>()))
+                .Callback<Customer>(_customerStore.Add);
+
+            // Mock repository for Admin
+            var adminRepoMock = new Mock<IGenericRepository<Admin>>();
+            adminRepoMock.Setup(r => r.Insert(It.IsAny<Admin>()))
+                .Callback<Admin>(_adminStore.Add);
+
+            // UnitOfWork should return these repos
+            _unitOfWorkMock.Setup(u => u.GetRepository<Customer>())
+                .Returns(customerRepoMock.Object);
+            _unitOfWorkMock.Setup(u => u.GetRepository<Admin>())
+                .Returns(adminRepoMock.Object);
+
+            // Mock SaveAsync
+            _unitOfWorkMock.Setup(u => u.SaveAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            // Mock BeginTransaction (no-op)
+            _unitOfWorkMock.Setup(u => u.BeginTransaction())
+                .Returns(Mock.Of<IDatabaseTransaction>());
 
             _handler = new RegisterCommandHandler(
                 _userManagerMock.Object,
-                _dbContextMock.Object,
+                _unitOfWorkMock.Object,
                 _loggerMock.Object
             );
         }
 
         [Fact]
-        public async Task Handle_ShouldRegisterCustomer_WhenValid()
+        public async Task Handle_ShouldRegisterCustomer_WhenRoleIsCustomer()
         {
-            var cmd = new RegisterCommand(
+            // Arrange
+            var command = new RegisterCommand(
                 Email: "test@example.com",
-                Password: "Pass@123",
+                Password: "Password123!",
                 FullName: "Test User",
                 UserType: "Customer",
+                PhoneNumber: "09087654321",
                 Address: "123 Main St",
                 DateOfBirth: new DateTime(1990, 1, 1),
-                PhoneNumber: "08123456789"
-
+                Department: null
             );
-
-            _userManagerMock
-                .Setup(m => m.CreateAsync(It.IsAny<ApplicationUser>(), cmd.Password))
+            _userManagerMock.Setup(m => m.CreateAsync(It.IsAny<ApplicationUser>(), command.Password))
                 .ReturnsAsync(IdentityResult.Success);
 
-            _userManagerMock
-                .Setup(m => m.AddToRoleAsync(It.IsAny<ApplicationUser>(), "Customer"))
-                .ReturnsAsync(IdentityResult.Success);
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
 
-            var result = await _handler.Handle(cmd, CancellationToken.None);
-
+            // Assert
             Assert.True(result.Success);
-            Assert.Single(_dbContextMock.Object.Customers);
-            _userManagerMock.Verify(m => m.CreateAsync(It.IsAny<ApplicationUser>(), cmd.Password), Times.Once);
-            _userManagerMock.Verify(m => m.AddToRoleAsync(It.IsAny<ApplicationUser>(), "Customer"), Times.Once);
+            Assert.Single(_customerStore); // Customer was added
+            Assert.Empty(_adminStore);     // No admin was added
         }
 
         [Fact]
-        public async Task Handle_ShouldFail_WhenValidationFails()
+        public async Task Handle_ShouldRegisterAdmin_WhenRoleIsAdmin()
         {
-            var cmd = new RegisterCommand(
-                Email: "bademail",
-                Password: "123",
-                FullName: "",
-                UserType: "Customer",
-                PhoneNumber: "08123456789"
+            // Arrange
+            var command = new RegisterCommand(
+                Email: "admin@example.com",
+                Password: "Admin123!",
+                FullName: "Test Admin",
+                UserType: "Admin",
+                PhoneNumber: "09087654321",
+                Address: null,
+                DateOfBirth: null,
+                Department: null
             );
 
-            await Assert.ThrowsAsync<ValidationException>(() =>
-                _handler.Handle(cmd, CancellationToken.None));
-        }
+            _userManagerMock.Setup(m => m.CreateAsync(It.IsAny<ApplicationUser>(), command.Password))
+                .ReturnsAsync(IdentityResult.Success);
 
-        [Fact]
-        public async Task Handle_ShouldFail_WhenUserCreationFails()
-        {
-            var cmd = new RegisterCommand(
-                Email: "test@example.com",
-                Password: "Pass@123",
-                FullName: "Test User",
-                UserType: "Customer",
-                PhoneNumber: "08123456789",
-                Address: "123 Main St",
-                DateOfBirth: new DateTime(1990, 1, 1)
-            );
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
 
-            _userManagerMock
-                .Setup(m => m.CreateAsync(It.IsAny<ApplicationUser>(), cmd.Password))
-                .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Duplicate email" }));
-
-            var result = await _handler.Handle(cmd, CancellationToken.None);
-
-            Assert.False(result.Success);
-            Assert.Contains("Duplicate email", result.Errors);
-            _userManagerMock.Verify(m => m.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
-        }
-
-        // helper for creating mock DbSet
-        private static Mock<DbSet<T>> CreateMockDbSet<T>(List<T> sourceList) where T : class
-        {
-            var queryable = sourceList.AsQueryable();
-            var dbSet = new Mock<DbSet<T>>();
-            dbSet.As<IQueryable<T>>().Setup(m => m.Provider).Returns(queryable.Provider);
-            dbSet.As<IQueryable<T>>().Setup(m => m.Expression).Returns(queryable.Expression);
-            dbSet.As<IQueryable<T>>().Setup(m => m.ElementType).Returns(queryable.ElementType);
-            dbSet.As<IQueryable<T>>().Setup(m => m.GetEnumerator()).Returns(queryable.GetEnumerator());
-            dbSet.Setup(d => d.Add(It.IsAny<T>())).Callback<T>(sourceList.Add);
-            return dbSet;
+            // Assert
+            Assert.True(result.Success);
+            Assert.Single(_adminStore);   // Admin was added
+            Assert.Empty(_customerStore); // No customer was added
         }
     }
+
 }

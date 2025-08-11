@@ -51,9 +51,11 @@ namespace BankingApp.Application.Features.Account.Command.Transfer
                 }
 
                 var fromAccount = _uow.GetRepository<BankingApp.Domain.Models.Account>().Get()
-                    .First(a => a.Id == request.FromAccountId && !a.IsDeleted);
+                    .First(a => a.AccountNumber == request.FromAccountId && !a.IsDeleted);
+
                 var toAccount = _uow.GetRepository<BankingApp.Domain.Models.Account>().Get()
-                    .First(a => a.Id == request.ToAccountId && !a.IsDeleted);
+                    .First(a => a.AccountNumber == request.ToAccountId && !a.IsDeleted);
+
 
                 fromAccount.Balance -= request.Amount;
                 toAccount.Balance += request.Amount;

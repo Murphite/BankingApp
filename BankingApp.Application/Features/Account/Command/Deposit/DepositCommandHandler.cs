@@ -46,8 +46,10 @@ namespace BankingApp.Application.Features.Account.Command.Deposit
                 TransactionType = "Deposit",
                 TransactionDate = DateTime.UtcNow,
                 BalanceAfterTransaction = account.Balance,
+                Description = "Deposit via payment gateway", // ✅ required field
                 IsDeleted = false
             });
+
 
             return await _uow.SaveAsync(cancellationToken) > 0;
         }

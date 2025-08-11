@@ -3,10 +3,12 @@ using BankingApp.Application.Features.Transaction.Queries.MonthlyStatement;
 using BankingApp.Domain.BindingModels.Responses;
 using BankingApp.Domain.Constants;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankingApp.API.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class TransactionController : ControllerBase

@@ -29,9 +29,18 @@ namespace BankingApp.Application.Features.Account.Command.Transfer
 
         private bool HaveSufficientFunds(TransferCommand cmd)
         {
+            // Now we query by AccountNumber instead of Id
             var fromAccount = _uow.GetRepository<BankingApp.Domain.Models.Account>().Get()
-                .FirstOrDefault(a => a.Id == cmd.FromAccountId && !a.IsDeleted);
-            return fromAccount != null && fromAccount.Balance >= cmd.Amount;
+                .FirstOrDefault(a => a.AccountNumber == cmd.FromAccountId && !a.IsDeleted);
+
+            if (fromAccount == null)
+            {
+                Console.WriteLine($"Account not found for AccountNumber: {cmd.FromAccountId}");
+                return false;
+            }
+
+            Console.WriteLine($"FromAccount Balance: {fromAccount.Balance}, Amount Requested: {cmd.Amount}");
+            return fromAccount.Balance >= cmd.Amount;
         }
     }
 }
