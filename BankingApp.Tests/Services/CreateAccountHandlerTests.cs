@@ -88,12 +88,21 @@ namespace BankingApp.Tests.Services
             };
 
             _accountRepoMock
-                .Setup(r => r.Get(
-                    It.IsAny<Expression<Func<Account, bool>>>(),
-                    It.IsAny<Func<IQueryable<Account>, IOrderedQueryable<Account>>>(),
-                    It.IsAny<string>()
-                ))
-                .Returns(new List<Account>().AsQueryable());
+                 .Setup(r => r.Get(
+                     It.IsAny<Expression<Func<Account, bool>>>(),
+                     It.IsAny<Func<IQueryable<Account>, IOrderedQueryable<Account>>>(),
+                     It.IsAny<string>()
+                 ))
+                 .Returns(new List<Account>
+                 {
+                    new Account
+                    {
+                        AccountHolderName = "Existing User",
+                        Id = 1,
+                        Balance = 1000
+                    }
+                 }.AsQueryable());
+
 
             var result = await _handler.Handle(command, CancellationToken.None);
 

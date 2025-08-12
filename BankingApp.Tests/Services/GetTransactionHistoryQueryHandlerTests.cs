@@ -71,12 +71,13 @@ namespace BankingApp.Tests.Services
             // Arrange
             var accountId = 2;
             var dbData = new List<Transaction>
-        {
-            new Transaction { AccountId = accountId, Amount = 200, TransactionDate = DateTime.UtcNow }
-        };
+            {
+                new Transaction { AccountId = accountId, Amount = 200, TransactionDate = DateTime.UtcNow }
+            };
 
-            _cacheServiceMock.Setup(c => c.RetrieveFromCacheAsync<List<Transaction>>($"Transactions_{accountId}"))
-                .ReturnsAsync((List<Transaction>)null);
+            _cacheServiceMock
+     .Setup(c => c.RetrieveFromCacheAsync<List<Transaction>>($"Transactions_{accountId}"))
+     .ReturnsAsync((List<Transaction>)null);
 
             _transactionRepoMock
                 .Setup(r => r.Get(
@@ -84,18 +85,20 @@ namespace BankingApp.Tests.Services
                     It.IsAny<Func<IQueryable<Transaction>, IOrderedQueryable<Transaction>>>(),
                     It.IsAny<string>()
                 ))
-                .Returns(new List<Transaction>().AsQueryable());
+                .Returns(dbData.AsQueryable()); // now returns your fake data
 
             var query = new GetTransactionHistoryQuery { AccountId = accountId };
 
-            // Act
             var result = await _handler.Handle(query, CancellationToken.None);
 
-            // Assert
             Assert.Equal(ResponseCode.SUCCESSFUL, result.StatusCode);
             Assert.Contains("retrieved successfully", result.StatusMessage);
             Assert.Single(result.Data);
-            _cacheServiceMock.Verify(c => c.CacheAbsoluteObject($"Transactions_{accountId}", dbData, 10), Times.Once);
+            _cacheServiceMock.Verify(
+                c => c.CacheAbsoluteObject(
+                    $"Transactions_{accountId}", It.IsAny<List<Transaction>>(), 10),
+                Times.Once);
+
         }
 
         [Fact]

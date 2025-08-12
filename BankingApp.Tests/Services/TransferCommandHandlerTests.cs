@@ -4,6 +4,7 @@ using BankingApp.Application.Features.Account.Command.Transfer;
 using BankingApp.Domain.Constants;
 using BankingApp.Domain.Models;
 using BankingApp.Domain.Utility.Interfaces;
+using BankingApp.Infrastructure.Persistence.Context;
 using BankingApp.Infrastructure.Persistence.Repositories;
 using BankingApp.Infrastructure.Persistence.UnitOfWork;
 using Microsoft.Extensions.Logging;
@@ -15,32 +16,44 @@ namespace BankingApp.Tests.Services
 {
     public class TransferCommandHandlerTests
     {
-        private readonly Mock<ILogger<TransferCommandHandler>> _loggerMock;
-        private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+        private readonly Mock<IPaymentGateway> _paymentGatewayMock;
+        private readonly Mock<IUnitOfWork<BankingDbContext>> _unitOfWorkMock;
         private readonly Mock<IGenericRepository<Account>> _accountRepoMock;
         private readonly Mock<IGenericRepository<Transaction>> _transactionRepoMock;
-        private readonly Mock<IPaymentGateway> _paymentGatewayMock;
+        private readonly Mock<IDatabaseTransaction> _dbTransactionMock;
+        private readonly Mock<ILogger<TransferCommandHandler>> _loggerMock;
         private readonly TransferCommandHandler _handler;
 
         public TransferCommandHandlerTests()
         {
-            _loggerMock = new Mock<ILogger<TransferCommandHandler>>();
-            _unitOfWorkMock = new Mock<IUnitOfWork>();
+            _paymentGatewayMock = new Mock<IPaymentGateway>();
+            _unitOfWorkMock = new Mock<IUnitOfWork<BankingDbContext>>();
             _accountRepoMock = new Mock<IGenericRepository<Account>>();
             _transactionRepoMock = new Mock<IGenericRepository<Transaction>>();
-            _paymentGatewayMock = new Mock<IPaymentGateway>();
+            _dbTransactionMock = new Mock<IDatabaseTransaction>();
+            _loggerMock = new Mock<ILogger<TransferCommandHandler>>();
 
-            _unitOfWorkMock.Setup(u => u.GetRepository<Account>())
+            // UnitOfWork repo setup
+            _unitOfWorkMock
+                .Setup(u => u.GetRepository<Account>())
                 .Returns(_accountRepoMock.Object);
-            _unitOfWorkMock.Setup(u => u.GetRepository<Transaction>())
+
+            _unitOfWorkMock
+                .Setup(u => u.GetRepository<Transaction>())
                 .Returns(_transactionRepoMock.Object);
 
+            // BeginTransaction returns mock transaction
+            _unitOfWorkMock
+                .Setup(u => u.BeginTransaction())
+                .Returns(_dbTransactionMock.Object);
 
+            // Create the handler with mocks
             _handler = new TransferCommandHandler(
-                _unitOfWorkMock.Object,
-                _loggerMock.Object,
-                _paymentGatewayMock.Object
-            );
+               _unitOfWorkMock.Object,
+               _loggerMock.Object,
+               _paymentGatewayMock.Object
+           );
+
         }
 
         [Fact]
@@ -110,6 +123,7 @@ namespace BankingApp.Tests.Services
         [Fact]
         public async Task Handle_ShouldFail_WhenInsufficientFunds()
         {
+            // Arrange
             var command = new TransferCommand
             {
                 FromAccountId = 1,
@@ -133,17 +147,19 @@ namespace BankingApp.Tests.Services
                 {
                     var list = new List<Account>
                     {
-                        new Account { Id = 1, AccountNumber = 111, Balance = 100, IsDeleted = false },
-                        new Account { Id = 2, AccountNumber = 222, Balance = 500, IsDeleted = false }
+                    new Account { Id = 1, AccountNumber = 111, Balance = 100, IsDeleted = false },
+                    new Account { Id = 2, AccountNumber = 222, Balance = 500, IsDeleted = false }
                     };
                     return list.Where(predicate.Compile()).AsQueryable();
                 });
 
+            // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
+            // Assert
             Assert.Equal(ResponseCode.BadRequest, result.StatusCode);
             Assert.Contains("Insufficient funds", result.StatusMessage, StringComparison.OrdinalIgnoreCase);
-            _transactionRepoMock.Verify(t => t.RollBack(), Times.Once);
+            _dbTransactionMock.Verify(t => t.Rollback(), Times.Once);
         }
     }
 }

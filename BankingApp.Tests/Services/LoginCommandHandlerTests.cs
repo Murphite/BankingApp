@@ -45,11 +45,20 @@ namespace BankingApp.Tests.Services
                 UserName = "test@example.com",
                 IsActive = true,
                 UserType = "Customer",
+                FullName = "Murphy",
+                PhoneNumber = "09023456789",
                 CustomerDetails = new Customer { Id = 1, Address = "123 St", Age = 30 }
             };
 
-            _userManagerMock.Setup(x => x.Users)
-                .Returns(new List<ApplicationUser> { user }.AsQueryable());
+            var options = new DbContextOptionsBuilder<BankingDbContext>()
+            .UseInMemoryDatabase("TestDb_NotFound")
+            .Options;
+
+            var context = new BankingDbContext(options);
+            context.Users.Add(user);
+            context.SaveChanges();
+
+            _userManagerMock.Setup(x => x.Users).Returns(context.Users);
 
             _userManagerMock.Setup(x => x.CheckPasswordAsync(user, "Password123"))
                 .ReturnsAsync(true);
@@ -76,8 +85,27 @@ namespace BankingApp.Tests.Services
         public async Task Handle_ShouldReturnInvalidCredentials_WhenUserNotFound()
         {
             // Arrange
-            _userManagerMock.Setup(x => x.Users)
-                .Returns(new List<ApplicationUser>().AsQueryable());
+            var user = new ApplicationUser
+            {
+                Email = "notfound@example.com",
+                UserName = "notfound@example.com",
+                FullName = "Murphy",
+                PhoneNumber = "09023456789",
+                IsActive = true,
+                UserType = "Customer",
+                CustomerDetails = new Customer { Id = 1, Address = "123 St", Age = 30 }
+            };
+
+            var options = new DbContextOptionsBuilder<BankingDbContext>()
+            .UseInMemoryDatabase("TestDb_NotFound")
+            .Options;
+
+            var context = new BankingDbContext(options);
+            context.Users.Add(user);
+            context.SaveChanges();
+
+            _userManagerMock.Setup(x => x.Users).Returns(context.Users);
+
 
             var command = new LoginCommand("notfound@example.com", "Password123");
 
@@ -96,11 +124,22 @@ namespace BankingApp.Tests.Services
             {
                 Email = "inactive@example.com",
                 UserName = "inactive@example.com",
-                IsActive = false
+                IsActive = false,
+                FullName = "Test User",
+                PhoneNumber = "1234567890",
+                UserType = "Customer"
             };
 
-            _userManagerMock.Setup(x => x.Users)
-                .Returns(new List<ApplicationUser> { user }.AsQueryable());
+            var options = new DbContextOptionsBuilder<BankingDbContext>()
+                .UseInMemoryDatabase("TestDb")
+                .Options;
+
+            var context = new BankingDbContext(options);
+            context.Users.Add(user);
+            context.SaveChanges();
+
+            _userManagerMock.Setup(x => x.Users).Returns(context.Users);
+
 
             var command = new LoginCommand("inactive@example.com", "Password123");
 
@@ -119,11 +158,22 @@ namespace BankingApp.Tests.Services
             {
                 Email = "wrongpass@example.com",
                 UserName = "wrongpass@example.com",
-                IsActive = true
+                IsActive = true,
+                FullName = "Test User",
+                PhoneNumber = "1234567890",
+                UserType = "Customer"
             };
 
-            _userManagerMock.Setup(x => x.Users)
-                .Returns(new List<ApplicationUser> { user }.AsQueryable());
+            var options = new DbContextOptionsBuilder<BankingDbContext>()
+                .UseInMemoryDatabase("TestDb_InvalidPassword")
+                .Options;
+
+            var context = new BankingDbContext(options);
+            context.Users.Add(user);
+            context.SaveChanges();
+
+            _userManagerMock.Setup(x => x.Users).Returns(context.Users);
+
 
             _userManagerMock.Setup(x => x.CheckPasswordAsync(user, "WrongPass"))
                 .ReturnsAsync(false);
@@ -141,11 +191,27 @@ namespace BankingApp.Tests.Services
         [Fact]
         public async Task Handle_ShouldThrowValidationException_WhenEmailInvalid()
         {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                Email = "",
+                UserName = "",
+                IsActive = true,
+                UserType = "Customer",
+                FullName = "Murphy",
+                PhoneNumber = "09023456789",
+                CustomerDetails = new Customer { Id = 1, Address = "123 St", Age = 30 }
+            };
+
+            _userManagerMock.Setup(x => x.Users)
+                .Returns(new List<ApplicationUser> { user }.AsQueryable());
+
             var command = new LoginCommand("", "Password123");
 
             // Act & Assert
-            await Assert.ThrowsAsync<ValidationException>(() =>
-                _handler.Handle(command, CancellationToken.None));
+            await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+             _handler.Handle(command, CancellationToken.None));
+
         }
 
         // Helper: Mock UserManager

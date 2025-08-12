@@ -107,11 +107,15 @@ namespace BankingApp.Tests.Services
                 PhoneNumber: "09087654321",
                 Address: null,
                 DateOfBirth: null,
-                Department: null
+                Department: "Finance"
             );
 
+            var options = new DbContextOptionsBuilder<BankingDbContext>()
+            .UseInMemoryDatabase("TestDb")
+            .Options;
+               
             _userManagerMock.Setup(m => m.CreateAsync(It.IsAny<ApplicationUser>(), command.Password))
-                .ReturnsAsync(IdentityResult.Success);
+             .ReturnsAsync(IdentityResult.Success);
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
